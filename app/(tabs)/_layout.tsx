@@ -1,35 +1,28 @@
-import { Tabs } from 'expo-router';
-import React from 'react';
+import { Tabs } from "expo-router";
+import React from "react";
+import { useState } from "react";
+import SignIn from "../auth/SignIn";
 
-import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+export default function _Layout() {
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+const [auth, setAuth] = useState(false);
 
-  return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
+function handleAuth(){
+  setAuth(true);
+}
+
+if(!auth) return <SignIn handleAuth={handleAuth} />
+
+return (
+    <Tabs 
+    screenOptions={{ 
         headerShown: false,
-        tabBarButton: HapticTab,
-      }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="explore"
-        options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
-        }}
-      />
+        tabBarInactiveTintColor: "#999",
+        }}>
+      <Tabs.Screen name="/index" options={{ title:"index"}}/>
+      <Tabs.Screen name="/booking" options={{ title:"booking"}}/>
+      <Tabs.Screen name="/profile" options={{ title:"profile"}}/>
+      <Tabs.Screen name="/about" options={{ title:"settings"}}/>
     </Tabs>
   );
 }

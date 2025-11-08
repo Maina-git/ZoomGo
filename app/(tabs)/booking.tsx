@@ -1,0 +1,244 @@
+import React, { useState } from "react";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  FlatList,
+  Modal,
+  TextInput,
+  
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+// Define the booking type
+interface Booking {
+  id: string;
+  pickup: string;
+  destination: string;
+  rideType: string;
+  status: "Pending" | "Confirmed";
+  price: string | null;
+}
+
+export default function Bookings() {
+  const [bookings, setBookings] = useState<Booking[]>([
+    {
+      id: "1",
+      pickup: "Downtown Station",
+      destination: "City Mall",
+      rideType: "Standard",
+      status: "Pending",
+      price: null,
+    },
+    {
+      id: "2",
+      pickup: "Airport",
+      destination: "Hotel Plaza",
+      rideType: "Premium",
+      status: "Pending",
+      price: null,
+    },
+  ]);
+
+  const [priceModalVisible, setPriceModalVisible] = useState<boolean>(false);
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
+  const [price, setPrice] = useState<string>("");
+
+  const handleConfirmPress = (booking: Booking) => {
+    setSelectedBooking(booking);
+    setPriceModalVisible(true);
+  };
+
+  const handleSavePrice = () => {
+    if (!selectedBooking) return;
+
+    const updated = bookings.map((b) =>
+      b.id === selectedBooking.id
+        ? { ...b, status: "Confirmed", price: price }
+        : b
+    );
+    setBookings(updated);
+    setPrice("");
+    setSelectedBooking(null);
+    setPriceModalVisible(false);
+  };
+
+  const renderBookingItem = ({ item }: { item: Booking }) => (
+    <View style={styles.bookingCard}>
+      <View style={styles.detailsContainer}>
+        <Text style={styles.pickupText}>
+          {item.pickup} ➜ {item.destination}
+        </Text>
+        <Text style={styles.infoText}>Type: {item.rideType}</Text>
+        <Text
+          style={[
+            styles.status,
+            item.status === "Pending" ? styles.pending : styles.confirmed,
+          ]}>
+          {item.status}
+        </Text>
+        {item.price && <Text style={styles.priceText}>💰 ${item.price}</Text>}
+      </View>
+
+      {item.status === "Pending" && (
+        <TouchableOpacity
+          style={styles.confirmBtn}
+          onPress={() => handleConfirmPress(item)}>
+          <Text style={styles.confirmText}>Confirm & Pay</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.pageTitle}>Your Bookings</Text>
+      <FlatList
+        data={bookings}
+        renderItem={renderBookingItem}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={{ paddingBottom: 40 }}/>
+
+
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={priceModalVisible}
+        onRequestClose={() => setPriceModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Enter Ride Price</Text>
+
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. 25.00"
+              placeholderTextColor="#999"
+              keyboardType="numeric"
+              value={price}
+              onChangeText={setPrice}/>
+
+            <TouchableOpacity style={styles.saveBtn} onPress={handleSavePrice}>
+              <Text style={styles.saveText}>Save</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.cancelBtn}
+              onPress={() => setPriceModalVisible(false)}>
+              <Text style={styles.cancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#000",
+    padding: 16,
+  },
+  pageTitle: {
+    color: "#fff",
+    fontSize: 22,
+    fontWeight: "600",
+    marginBottom: 20,
+  },
+  bookingCard: {
+    backgroundColor: "#111",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: "#222",
+  },
+  detailsContainer: {
+    marginBottom: 10,
+  },
+  pickupText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  infoText: {
+    color: "#aaa",
+    marginTop: 4,
+  },
+  status: {
+    marginTop: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    alignSelf: "flex-start",
+    fontSize: 14,
+  },
+  pending: {
+    backgroundColor: "#333",
+    color: "#fff",
+  },
+  confirmed: {
+    backgroundColor: "#fff",
+    color: "#000",
+  },
+  priceText: {
+    color: "#fff",
+    marginTop: 6,
+    fontSize: 15,
+  },
+  confirmBtn: {
+    backgroundColor: "#fff",
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  confirmText: {
+    color: "#000",
+    fontWeight: "600",
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0,0,0,0.6)",
+  },
+  modalContent: {
+    backgroundColor: "#111",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+  },
+  modalTitle: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "600",
+    marginBottom: 15,
+  },
+  input: {
+    backgroundColor: "#1a1a1a",
+    borderRadius: 10,
+    padding: 12,
+    color: "#fff",
+    fontSize: 16,
+    marginBottom: 20,
+  },
+  saveBtn: {
+    backgroundColor: "#fff",
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  saveText: {
+    color: "#000",
+    fontWeight: "600",
+    fontSize: 16,
+  },
+  cancelBtn: {
+    marginTop: 10,
+    alignItems: "center",
+  },
+  cancelText: {
+    color: "#aaa",
+    fontSize: 14,
+  },
+});

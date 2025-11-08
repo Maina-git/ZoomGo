@@ -1,98 +1,240 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import React, { useState } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Modal,
+  SafeAreaView,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+export default function Home() {
+  const [modalVisible, setModalVisible] = useState(false);
+  const [pickup, setPickup] = useState("");
+  const [destination, setDestination] = useState("");
+  const [rideType, setRideType] = useState("Standard");
 
-export default function HomeScreen() {
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <View style={styles.container}>
+    
+      <View style={styles.header}>
+        <Text style={styles.greeting}>Good Morning 👋</Text>
+        <TouchableOpacity style={styles.profileBtn}>
+          <Ionicons name="person-outline" size={24} color="#fff" />
+        </TouchableOpacity>
+      </View>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+      <TouchableOpacity
+        style={styles.searchContainer}
+        onPress={() => setModalVisible(true)}>
+        <Ionicons name="search" size={20} color="#999" />
+        <Text style={styles.searchPlaceholder}>Where to?</Text>
+      </TouchableOpacity>
+
+      <View style={styles.recentContainer}>
+        <Text style={styles.sectionTitle}>Recent</Text>
+        <TouchableOpacity style={styles.locationItem}>
+          <Ionicons name="location-outline" size={20} color="#fff" />
+          <Text style={styles.locationText}>Home</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.locationItem}>
+          <Ionicons name="briefcase-outline" size={20} color="#fff" />
+          <Text style={styles.locationText}>Work</Text>
+        </TouchableOpacity>
+      </View>
+
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Request a Ride</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Pickup Location"
+              placeholderTextColor="#999"
+              value={pickup}
+              onChangeText={setPickup}/>
+            <TextInput
+              style={styles.input}
+              placeholder="Destination"
+              placeholderTextColor="#999"
+              value={destination}
+              onChangeText={setDestination}/>
+
+            <Text style={styles.label}>Select Ride Type</Text>
+            <View style={styles.rideTypeContainer}>
+              {["Standard", "Premium", "XL"].map((type) => (
+                <TouchableOpacity
+                  key={type}
+                  style={[
+                    styles.rideTypeButton,
+                    rideType === type && styles.selectedRideType,
+                  ]}
+                  onPress={() => setRideType(type)}>
+                  <Text
+                    style={[
+                      styles.rideTypeText,
+                      rideType === type && styles.selectedRideTypeText,
+                    ]}>
+                    {type}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TouchableOpacity
+              style={styles.confirmBtn}
+              onPress={() => {
+                setModalVisible(false);
+                console.log("Ride Details:", { pickup, destination, rideType });
+              }}>
+              <Text style={styles.confirmText}>Confirm Ride</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.cancelBtn}
+              onPress={() => setModalVisible(false)}>
+              <Text style={styles.cancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flex: 1,
+    backgroundColor: "#000",
+    paddingHorizontal: 16,
   },
-  stepContainer: {
-    gap: 8,
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 10,
+  },
+  greeting: {
+    color: "#fff",
+    fontSize: 20,
+    fontWeight: "600",
+  },
+  profileBtn: {
+    backgroundColor: "#1a1a1a",
+    padding: 10,
+    borderRadius: 30,
+  },
+  searchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#1a1a1a",
+    borderRadius: 10,
+    padding: 14,
+    marginTop: 20,
+  },
+  searchPlaceholder: {
+    color: "#999",
+    marginLeft: 10,
+    fontSize: 16,
+  },
+  recentContainer: {
+    marginTop: 30,
+  },
+  sectionTitle: {
+    color: "#aaa",
+    fontSize: 14,
+    marginBottom: 10,
+  },
+  locationItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#111",
+    padding: 14,
+    borderRadius: 10,
+    marginBottom: 10,
+  },
+  locationText: {
+    color: "#fff",
+    marginLeft: 10,
+    fontSize: 16,
+  },
+
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0,0,0,0.6)",
+  },
+  modalContent: {
+    backgroundColor: "#111",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+  },
+  modalTitle: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "600",
+    marginBottom: 20,
+  },
+  input: {
+    backgroundColor: "#1a1a1a",
+    borderRadius: 10,
+    padding: 12,
+    color: "#fff",
+    marginBottom: 12,
+    fontSize: 16,
+  },
+  label: {
+    color: "#aaa",
     marginBottom: 8,
+    marginTop: 10,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  rideTypeContainer: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginBottom: 20,
+  },
+  rideTypeButton: {
+    borderColor: "#444",
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+  },
+  selectedRideType: {
+    backgroundColor: "#fff",
+  },
+  rideTypeText: {
+    color: "#fff",
+  },
+  selectedRideTypeText: {
+    color: "#000",
+    fontWeight: "600",
+  },
+  confirmBtn: {
+    backgroundColor: "#fff",
+    padding: 14,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  confirmText: {
+    color: "#000",
+    fontWeight: "600",
+    fontSize: 16,
+  },
+  cancelBtn: {
+    marginTop: 10,
+    alignItems: "center",
+  },
+  cancelText: {
+    color: "#aaa",
+    fontSize: 14,
   },
 });
