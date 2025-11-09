@@ -1,30 +1,98 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  Image,
   TouchableOpacity,
-  SafeAreaView,
   ScrollView,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { auth, db } from "../config/firebase";
+import { doc, getDoc } from "firebase/firestore";
+import { signOut } from "firebase/auth";
 
-export default function Profile() {
-  const [user, setUser] = useState({
-    name: "John Doe",
-    email: "john.doe@email.com",
-    phone: "+1 234 567 890",
-  });
+interface UserProfile {
+  name: string;
+  email: string;
+  phone?: string;
+}
+
+export default function Profile({ navigation }: any) {
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+
+
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      try {
+        const currentUser = auth.currentUser;
+        if (!currentUser) {
+          setLoading(false);
+          return;
+        }
+
+        const userDocRef = doc(db, "users", currentUser.uid);
+        const userDoc = await getDoc(userDocRef);
+
+        if (userDoc.exists()) {
+          const data = userDoc.data();
+          setUser({
+            name: data.name || "Unnamed User",
+            email: data.email || currentUser.email || "",
+            phone: data.phone || "No phone number",
+          });
+        } else {
+          
+          setUser({
+            name: currentUser.displayName || "New User",
+            email: currentUser.email || "No email",
+            phone: "No phone number",
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching user:", error);
+        Alert.alert("Error", "Failed to load profile data.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserProfile();
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      Alert.alert("Logged Out", "You have been logged out successfully.");
+      navigation.replace("SignIn"); 
+    } catch (error: any) {
+      Alert.alert("Error", error.message);
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: "center" }]}>
+        <ActivityIndicator size="large" color="#fff" />
+      </View>
+    );
+  }
+
+  if (!user) {
+    return (
+      <View style={[styles.container, { justifyContent: "center" }]}>
+        <Text style={{ color: "#fff", textAlign: "center" }}>
+          No user data available
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
-    
-        <View style={styles.header}>
-          <Text style={styles.title}>Profile</Text>
-        </View>
-
 
         <View style={styles.avatarContainer}>
           <View style={styles.avatarCircle}>
@@ -33,8 +101,7 @@ export default function Profile() {
           <Text style={styles.userName}>{user.name}</Text>
           <Text style={styles.userEmail}>{user.email}</Text>
         </View>
-
-  
+    
         <View style={styles.infoSection}>
           <View style={styles.infoRow}>
             <Ionicons name="call-outline" size={20} color="#fff" />
@@ -46,7 +113,6 @@ export default function Profile() {
           </View>
         </View>
 
-    
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Account Settings</Text>
 
@@ -72,12 +138,12 @@ export default function Profile() {
 
           <TouchableOpacity style={styles.option}>
             <Ionicons name="information-circle-outline" size={22} color="#fff" />
-            <Text style={styles.optionText}>About VeloRide</Text>
+            <Text style={styles.optionText}>About ZoomGo</Text>
           </TouchableOpacity>
         </View>
 
-  
-        <TouchableOpacity style={styles.logoutBtn}>
+        {/* Logout Button */}
+        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
           <Text style={styles.logoutText}>Log Out</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -90,20 +156,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#000",
   },
-  header: {
-    padding: 16,
-    alignItems: "center",
-    borderBottomWidth: 1,
-    borderBottomColor: "#222",
-  },
-  title: {
-    color: "#fff",
-    fontSize: 22,
-    fontWeight: "700",
-  },
   avatarContainer: {
     alignItems: "center",
-    marginTop: 30,
+    marginTop: 50,
   },
   avatarCircle: {
     backgroundColor: "#fff",

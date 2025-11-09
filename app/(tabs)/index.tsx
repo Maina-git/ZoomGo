@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,45 +6,142 @@ import {
   TouchableOpacity,
   StyleSheet,
   Modal,
-  SafeAreaView,
+  Alert,
+  FlatList,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { auth, db } from "../config/firebase";
+import {
+  addDoc,
+  collection,
+  serverTimestamp,
+  query,
+  where,
+  onSnapshot,
+} from "firebase/firestore";
 
-export default function Home() {
+interface RecentBooking {
+  id: string;
+  rideType: string;
+  status: string;
+}
+
+export default function Home({ navigation }: any) {
   const [modalVisible, setModalVisible] = useState(false);
   const [pickup, setPickup] = useState("");
   const [destination, setDestination] = useState("");
   const [rideType, setRideType] = useState("Standard");
+  const [recentBookings, setRecentBookings] = useState<RecentBooking[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+
+  
+  const createRideRequest = async () => {
+    const user = auth.currentUser;
+
+    if (!user) {
+      Alert.alert("Error", "You must be logged in to request a ride.");
+      return;
+    }
+
+    if (!pickup || !destination) {
+      Alert.alert("Error", "Please enter both pickup and destination.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const rideRequest = {
+        pickup,
+        destination,
+        rideType,
+        status: "Pending",
+        userRef: user.uid,
+        requestedAt: serverTimestamp(),
+      };
+
+      await addDoc(collection(db, "rideRequests"), rideRequest);
+
+      Alert.alert("Success", "Your ride has been requested!");
+      setModalVisible(false);
+      setPickup("");
+      setDestination("");
+      setRideType("Standard");
+    } catch (error: any) {
+      console.error("Error creating ride request:", error);
+      Alert.alert("Error", error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  
+  useEffect(() => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const q = query(
+      collection(db, "rideRequests"),
+      where("userRef", "==", user.uid)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const recent: RecentBooking[] = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        rideType: doc.data().rideType,
+        status: doc.data().status,
+      }));
+      setRecentBookings(recent);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   return (
     <View style={styles.container}>
-    
       <View style={styles.header}>
-        <Text style={styles.greeting}>Good Morning 👋</Text>
-        <TouchableOpacity style={styles.profileBtn}>
+        <Text style={styles.greeting}>
+          Hi, {auth.currentUser?.email || "Guest"}
+        </Text>
+        <TouchableOpacity
+          style={styles.profileBtn}
+          onPress={() => navigation.navigate("Profile")}>
           <Ionicons name="person-outline" size={24} color="#fff" />
         </TouchableOpacity>
       </View>
 
+    
       <TouchableOpacity
         style={styles.searchContainer}
         onPress={() => setModalVisible(true)}>
-        <Ionicons name="search" size={20} color="#999" />
         <Text style={styles.searchPlaceholder}>Where to?</Text>
       </TouchableOpacity>
 
+    
       <View style={styles.recentContainer}>
-        <Text style={styles.sectionTitle}>Recent</Text>
-        <TouchableOpacity style={styles.locationItem}>
-          <Ionicons name="location-outline" size={20} color="#fff" />
-          <Text style={styles.locationText}>Home</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.locationItem}>
-          <Ionicons name="briefcase-outline" size={20} color="#fff" />
-          <Text style={styles.locationText}>Work</Text>
-        </TouchableOpacity>
+        <Text style={styles.sectionTitle}>Recent Rides</Text>
+
+        {recentBookings.length === 0 ? (
+          <Text style={{ color: "#777", marginTop: 10 }}>
+            No recent rides yet.
+          </Text>
+        ) : (
+          <FlatList
+            data={recentBookings}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => (
+              <View style={styles.locationItem}>
+                <Ionicons name="car-outline" size={20} color="#fff" />
+                <Text style={styles.locationText}>
+                  {item.rideType} - {item.status}
+                </Text>
+              </View>
+            )}
+          />
+        )}
       </View>
 
+  
       <Modal
         animationType="slide"
         transparent={true}
@@ -53,12 +150,14 @@ export default function Home() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Request a Ride</Text>
+
             <TextInput
               style={styles.input}
               placeholder="Pickup Location"
               placeholderTextColor="#999"
               value={pickup}
               onChangeText={setPickup}/>
+
             <TextInput
               style={styles.input}
               placeholder="Destination"
@@ -89,11 +188,13 @@ export default function Home() {
 
             <TouchableOpacity
               style={styles.confirmBtn}
-              onPress={() => {
-                setModalVisible(false);
-                console.log("Ride Details:", { pickup, destination, rideType });
-              }}>
-              <Text style={styles.confirmText}>Confirm Ride</Text>
+              onPress={createRideRequest}
+              disabled={loading}>
+              {loading ? (
+                <ActivityIndicator color="#000" />
+              ) : (
+                <Text style={styles.confirmText}>Confirm Ride</Text>
+              )}
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -118,7 +219,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginTop: 10,
+    marginTop: 50,
   },
   greeting: {
     color: "#fff",
@@ -133,15 +234,15 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#1a1a1a",
+    backgroundColor: "#fff",
     borderRadius: 10,
     padding: 14,
     marginTop: 20,
   },
   searchPlaceholder: {
-    color: "#999",
-    marginLeft: 10,
+    color: "#000",
     fontSize: 16,
+    width: "100%",
   },
   recentContainer: {
     marginTop: 30,
@@ -164,8 +265,6 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     fontSize: 16,
   },
-
-  // Modal styles
   modalOverlay: {
     flex: 1,
     justifyContent: "flex-end",

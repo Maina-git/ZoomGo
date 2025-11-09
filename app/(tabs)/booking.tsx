@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,61 +7,86 @@ import {
   FlatList,
   Modal,
   TextInput,
-  
+  Alert,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 
-// Define the booking type
+import { auth, db } from "../config/firebase";
+import {
+  collection,
+  query,
+  where,
+  onSnapshot,
+  updateDoc,
+  doc,
+} from "firebase/firestore";
+
 interface Booking {
   id: string;
   pickup: string;
   destination: string;
   rideType: string;
-  status: "Pending" | "Confirmed";
-  price: string | null;
+  status: "Pending" | "Approved";
+  price?: string;
 }
 
 export default function Bookings() {
-  const [bookings, setBookings] = useState<Booking[]>([
-    {
-      id: "1",
-      pickup: "Downtown Station",
-      destination: "City Mall",
-      rideType: "Standard",
-      status: "Pending",
-      price: null,
-    },
-    {
-      id: "2",
-      pickup: "Airport",
-      destination: "Hotel Plaza",
-      rideType: "Premium",
-      status: "Pending",
-      price: null,
-    },
-  ]);
-
+  const [bookings, setBookings] = useState<Booking[]>([]);
   const [priceModalVisible, setPriceModalVisible] = useState<boolean>(false);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [price, setPrice] = useState<string>("");
 
+
+  useEffect(() => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const q = query(
+      collection(db, "rideRequests"),
+      where("userRef", "==", user.uid)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const userBookings: Booking[] = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        pickup: doc.data().pickup,
+        destination: doc.data().destination,
+        rideType: doc.data().rideType,
+        status: doc.data().status,
+        price: doc.data().price,
+      }));
+      setBookings(userBookings);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  
+  const handleSavePrice = async () => {
+    if (!selectedBooking || !price) {
+      Alert.alert("Error", "Please enter a price.");
+      return;
+    }
+
+    try {
+      const bookingRef = doc(db, "rideRequests", selectedBooking.id);
+      await updateDoc(bookingRef, {
+        price,
+        status: "Approved",
+      });
+
+      Alert.alert("Success", "Ride confirmed and approved.");
+      setPrice("");
+      setSelectedBooking(null);
+      setPriceModalVisible(false);
+    } catch (error: any) {
+      console.error("Error updating booking:", error);
+      Alert.alert("Error", error.message);
+    }
+  };
+
   const handleConfirmPress = (booking: Booking) => {
     setSelectedBooking(booking);
     setPriceModalVisible(true);
-  };
-
-  const handleSavePrice = () => {
-    if (!selectedBooking) return;
-
-    const updated = bookings.map((b) =>
-      b.id === selectedBooking.id
-        ? { ...b, status: "Confirmed", price: price }
-        : b
-    );
-    setBookings(updated);
-    setPrice("");
-    setSelectedBooking(null);
-    setPriceModalVisible(false);
   };
 
   const renderBookingItem = ({ item }: { item: Booking }) => (
@@ -71,14 +96,16 @@ export default function Bookings() {
           {item.pickup} ➜ {item.destination}
         </Text>
         <Text style={styles.infoText}>Type: {item.rideType}</Text>
+
         <Text
           style={[
             styles.status,
-            item.status === "Pending" ? styles.pending : styles.confirmed,
+            item.status === "Pending" ? styles.pending : styles.approved,
           ]}>
           {item.status}
         </Text>
-        {item.price && <Text style={styles.priceText}>💰 ${item.price}</Text>}
+
+        {item.price && <Text style={styles.priceText}>${item.price}</Text>}
       </View>
 
       {item.status === "Pending" && (
@@ -94,12 +121,16 @@ export default function Bookings() {
   return (
     <View style={styles.container}>
       <Text style={styles.pageTitle}>Your Bookings</Text>
-      <FlatList
-        data={bookings}
-        renderItem={renderBookingItem}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingBottom: 40 }}/>
 
+      {bookings.length === 0 ? (
+        <Text style={styles.noBookingsText}>No bookings found.</Text>
+      ) : (
+        <FlatList
+          data={bookings}
+          renderItem={renderBookingItem}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={{ paddingBottom: 40 }}/>
+      )}
 
       <Modal
         animationType="slide"
@@ -144,7 +175,7 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 22,
     fontWeight: "600",
-    marginBottom: 20,
+    marginVertical:50
   },
   bookingCard: {
     backgroundColor: "#111",
@@ -178,7 +209,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#333",
     color: "#fff",
   },
-  confirmed: {
+  approved: {
     backgroundColor: "#fff",
     color: "#000",
   },
@@ -196,6 +227,11 @@ const styles = StyleSheet.create({
   confirmText: {
     color: "#000",
     fontWeight: "600",
+  },
+  noBookingsText: {
+    color: "#aaa",
+    textAlign: "center",
+    marginTop: 40,
   },
   modalOverlay: {
     flex: 1,

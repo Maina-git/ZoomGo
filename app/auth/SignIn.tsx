@@ -5,108 +5,179 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
 } from "react-native";
+import { auth, db } from "../config/firebase";
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+} from "firebase/auth";
+import { setDoc, doc } from "firebase/firestore";
 
 interface SignInProps {
-  handleAuth: () => void;
+  authSuccess: () => void;
 }
 
-export default function SignIn({ handleAuth }: SignInProps) {
+export default function SignIn({ authSuccess }: SignInProps) {
   const [isRegister, setIsRegister] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const toggleMode = () => setIsRegister(!isRegister);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (isRegister && password !== confirmPassword) {
-      alert("Passwords do not match!");
+      Alert.alert("Error", "Passwords do not match!");
       return;
     }
-    handleAuth();
+
+    if (!email || !password || (isRegister && !name)) {
+      Alert.alert("Error", "Please fill all required fields");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      if (isRegister) {
+        const userCredential = await createUserWithEmailAndPassword(
+          auth,
+          email,
+          password
+        );
+        const user = userCredential.user;
+
+        await setDoc(doc(db, "users", user.uid), {
+          name,
+          email: user.email,
+          createdAt: new Date(),
+        });
+
+        Alert.alert("Success", "Account created successfully!");
+        authSuccess();
+
+      } else {
+        await signInWithEmailAndPassword(auth, email, password);
+        Alert.alert("Success", "Login successful!");
+        authSuccess();
+      }
+       
+    } catch (error: any) {
+      Alert.alert("Authentication Error", error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <View style={styles.container}>
-      {/* Logo and Slogan */}
-      <View style={styles.logoContainer}>
-        <View style={styles.logoCircle}>
-          <Text style={styles.logoText}>ZG</Text>
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: "#000" }}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <ScrollView
+        contentContainerStyle={styles.scrollContainer}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Logo & Slogan */}
+        <View style={styles.logoContainer}>
+          <View style={styles.logoCircle}>
+            <Text style={styles.logoText}>ZG</Text>
+          </View>
+          <Text style={styles.slogan}>Fast. Reliable. Everywhere.</Text>
         </View>
-        <Text style={styles.slogan}>Fast. Reliable. Everywhere.</Text>
-      </View>
 
-      <View style={styles.subtitleContainer}>
-        <Text style={styles.subtitleText}>
-          {isRegister
-            ? "Create your ZoomGo account"
-            : "Sign in to continue your ride"}
-        </Text>
-      </View>
-
-      <View style={styles.inputContainer}>
-        {isRegister && (
-          <TextInput
-            style={styles.input}
-            placeholder="Name"
-            placeholderTextColor="#888"
-            value={name}
-            onChangeText={setName}/>
-        )}
-
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          placeholderTextColor="#888"
-          keyboardType="email-address"
-          value={email}
-          onChangeText={setEmail}/>
-
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          placeholderTextColor="#888"
-          secureTextEntry
-          value={password}
-          onChangeText={setPassword}/>
-
-        {isRegister && (
-          <TextInput
-            style={styles.input}
-            placeholder="Confirm Password"
-            placeholderTextColor="#888"
-            secureTextEntry
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}/>
-        )}
-      </View>
-      <TouchableOpacity style={styles.button} onPress={handleSubmit}>
-        <Text style={styles.buttonText}>{isRegister ? "Register" : "Login"}</Text>
-      </TouchableOpacity>
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>
-          {isRegister ? "Already have an account? " : "Don’t have an account? "}
-          <Text style={styles.footerLink} onPress={toggleMode}>
-            {isRegister ? "Login" : "Register"}
+        {/* Title */}
+        <View style={styles.titleContainer}>
+          <Text style={styles.title}>
+            {isRegister ? "Create your ZoomGo account" : "Welcome back to ZoomGo"}
           </Text>
-        </Text>
-      </View>
-    </View>
+        </View>
+
+        {/* Input Fields */}
+        <View style={styles.inputContainer}>
+          {isRegister && (
+            <TextInput
+              style={styles.input}
+              placeholder="Full Name"
+              placeholderTextColor="#777"
+              value={name}
+              onChangeText={setName}
+            />
+          )}
+          <TextInput
+            style={styles.input}
+            placeholder="Email Address"
+            placeholderTextColor="#777"
+            keyboardType="email-address"
+            value={email}
+            onChangeText={setEmail}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Password"
+            placeholderTextColor="#777"
+            secureTextEntry
+            value={password}
+            onChangeText={setPassword}
+          />
+          {isRegister && (
+            <TextInput
+              style={styles.input}
+              placeholder="Confirm Password"
+              placeholderTextColor="#777"
+              secureTextEntry
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+            />
+          )}
+        </View>
+
+        {/* Action Button */}
+        <TouchableOpacity
+          style={[styles.button, loading && { opacity: 0.7 }]}
+          onPress={handleSubmit}
+          disabled={loading}
+        >
+          <Text style={styles.buttonText}>
+            {loading
+              ? "Please wait..."
+              : isRegister
+              ? "Register"
+              : "Login"}
+          </Text>
+        </TouchableOpacity>
+
+        {/* Footer */}
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>
+            {isRegister ? "Already have an account? " : "Don’t have an account? "}
+            <Text style={styles.footerLink} onPress={toggleMode}>
+              {isRegister ? "Login" : "Register"}
+            </Text>
+          </Text>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#000",
+  scrollContainer: {
+    flexGrow: 1,
     justifyContent: "center",
+    alignItems: "center",
     paddingHorizontal: 25,
+    paddingVertical: 50,
+    backgroundColor: "#000",
   },
   logoContainer: {
     alignItems: "center",
-    marginTop: 30,
+    marginBottom: 30,
   },
   logoCircle: {
     backgroundColor: "#fff",
@@ -115,67 +186,71 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     alignItems: "center",
     justifyContent: "center",
+    marginBottom: 10,
   },
   logoText: {
     color: "#000",
-    fontSize: 36,
-    fontWeight: "800",
+    fontSize: 38,
+    fontWeight: "900",
   },
   slogan: {
     color: "#fff",
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "500",
-    marginTop: 10,
     textAlign: "center",
   },
-  subtitleContainer: {
-    alignItems: "center",
-    marginBottom: 50,
+  titleContainer: {
+    marginBottom: 40,
   },
-  subtitleText: {
-    color: "#aaa",
-    fontSize: 16,
-    marginTop: 5,
+  title: {
+    color: "#ccc",
+    fontSize: 17,
     textAlign: "center",
+    lineHeight: 24,
   },
   inputContainer: {
-    gap: 18,
+    width: "100%",
+    marginBottom: 30,
   },
   input: {
     backgroundColor: "#1a1a1a",
-    padding: 15,
+    paddingVertical: 15,
+    paddingHorizontal: 18,
     borderRadius: 10,
     color: "#fff",
     fontSize: 16,
     borderWidth: 1,
     borderColor: "#333",
+    marginBottom: 18,
   },
   button: {
     backgroundColor: "#fff",
-    paddingVertical: 15,
-    borderRadius: 10,
+    width: "100%",
+    paddingVertical: 16,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 40,
     shadowColor: "#fff",
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.3,
     shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 8,
+    shadowRadius: 6,
   },
   buttonText: {
     color: "#000",
-    fontWeight: "bold",
     fontSize: 18,
+    fontWeight: "700",
   },
   footer: {
-    marginTop: 25,
+    marginTop: 30,
     alignItems: "center",
   },
   footerText: {
     color: "#888",
+    fontSize: 15,
   },
   footerLink: {
     color: "#fff",
-    fontWeight: "600",
+    fontWeight: "700",
+    textDecorationLine: "underline",
   },
 });
