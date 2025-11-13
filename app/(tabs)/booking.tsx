@@ -131,7 +131,6 @@ export default function Bookings() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ paddingBottom: 40 }}/>
       )}
-
       <Modal
         animationType="slide"
         transparent={true}
@@ -140,7 +139,6 @@ export default function Bookings() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Enter Ride Price</Text>
-
             <TextInput
               style={styles.input}
               placeholder="e.g. 25.00"
@@ -148,11 +146,9 @@ export default function Bookings() {
               keyboardType="numeric"
               value={price}
               onChangeText={setPrice}/>
-
             <TouchableOpacity style={styles.saveBtn} onPress={handleSavePrice}>
               <Text style={styles.saveText}>Save</Text>
             </TouchableOpacity>
-
             <TouchableOpacity
               style={styles.cancelBtn}
               onPress={() => setPriceModalVisible(false)}>
